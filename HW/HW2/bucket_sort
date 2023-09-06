@@ -1,0 +1,245 @@
+/* 
+ * Updated 2/25/2021 - Alexandra Stefan
+ * Completed 10/6/2021 - Chonrev Cal
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+
+#include "list.h"
+
+
+/* 
+compile with -g to collect debugging info needed for Valgrind: 
+gcc -g bucket_sort.c list.c
+
+run with Valgrind:
+valgrind --leak-check=full --show-leak-kinds=all ./a.out
+
+if the above fails, you can run it without the --show-leak-kinds=all, so use only:
+valgrind --leak-check=full ./a.out
+
+run without Valgrind:
+./a.out
+*/
+
+/*
+NB = Number of Buckets
+N = size of array
+*/
+
+void print_array(int arr[], int N);							// prints the current array
+nodePT insert_sorted(nodePT L, nodePT newP);				// function to insert a new node in a sorted list.
+void bucket_sort(int arr[], int N);							// function to sort an array using bucket sort
+/*
+list functions:
+nodePT array_2_list(int arr[], int N);						// converts an array into a linked list
+nodePT new_node(int value_in);								// Creates a new link, that contains the value specified in the argument, and that points to NULL.
+void destroy_list(nodePT L);								// Deallocates memory for all nodes in the list and the list object itself.
+int compute_length(nodePT L);								// Iterates through list and counts nodes.
+void insert_node_after(nodePT previous, nodePT new_node);	// Inserts new_node to the specified list, at the position right after the node called "previous".
+nodePT insert_node(nodePT L, nodePT prev, nodePT newP);		// Inserts in list L, a the new node newP, after the node prev. If prev is NULL it means newP must be linked to the beginning of L
+void delete_node_after(nodePT prev);						// Delete the node after the node "prev".
+nodePT delete_node(nodePT L, nodePT prev);					// Deletes from list L, the node after prev. If prev is NULL it means that the first node of L must be deleted.
+void print_list_vert(nodePT my_list);						
+void print_list_horiz(nodePT my_list);						
+void print_list_pointer(nodePT my_list);					// for each node prints both data field and the mem address of that node
+*/
+
+/* // recommended helper functions:
+// function to insert a new node in a sorted list.
+nodePT insert_sorted(nodePT L, nodePT newP);
+//  function to sort an array sing bucket sort
+void bucket_sort(int arr[], int N)
+*/
+
+void print_array(int arr[], int N){
+	int j;
+	printf("\n array: ");
+	for(j= 0; j<N; j++){
+		printf("%5d,", arr[j]);
+	}
+	printf("\n");
+}
+
+nodePT insert_sorted(nodePT L, nodePT newP) {
+	
+	nodePT temp = L;
+	while(temp->data < newP->data)
+	{
+		temp = temp->next;
+	}
+	
+	return insert_node(L, temp, newP);
+	
+}
+
+void bucket_sort(int arr[], int N) {
+	
+	nodePT buckets[N];
+	
+	int max = 0;
+	
+	int i;
+	for(i = 0; i < N; i++)
+	{
+		if(max < arr[i])
+		{
+			max = arr[i];
+		}
+	}
+	
+	int min = max;
+	for(i = 0; i < N; i++)
+	{
+		if(min > arr[i])
+		{
+			min = arr[i];
+		}
+	}
+	
+	printf("Bucketsort: min = %d, max = %d, N=%d buckets\n", min, max, N);
+	
+	// initialize each element in buckets to be empty
+	for(i = 0; i < N; i++)
+	{
+		buckets[i] = NULL;
+	}
+	
+	// add each element in arr to list buckets[index]
+	for(i = 0; i < N; i++)
+	{
+		double result =((arr[i]-min)*N)/(1+max-min);
+		int index = (int)floor(result);
+		
+		printf("arr[%d]=\t%d, idx = %d\n", i, arr[i], index);
+		
+		arr[i] = 0;
+		if(buckets[index] == NULL)
+		{
+			buckets[index] = new_node(arr[i]);
+		}
+		else
+		{
+			nodePT newP = new_node(arr[i]);
+			nodePT temp = buckets[index];
+			while(temp->next != NULL)
+			{
+				temp = temp->next;
+			}
+			buckets[index] = insert_node(buckets[index], temp, newP);
+		}
+	}
+	
+	// sort each list with insertion sort & add back to arr
+	for(i = 0; i < N; i++)
+	{
+		int listLength = 0;
+		nodePT temp = buckets[i];
+		while(temp != NULL)
+		{
+			++listLength;
+			temp = temp->next;
+		}
+		
+		int sortArray[listLength];
+		
+		int j;
+		temp = buckets[i];
+		for(j = 0; j < listLength; j++)
+		{
+			while(temp->next != NULL)
+			{
+				sortArray[j] = temp->data;
+				temp = temp->next;
+			}
+		}
+		
+		//insertion sort
+		int k, key;
+		for(j = 1; j < listLength; j++)
+		{
+			key = sortArray[j];
+			k = j - 1;
+			while(k >= 0 && sortArray[k] > key)
+			{
+				sortArray[k+1] = sortArray[k];
+				k = k - 1;
+			}
+		}
+		sortArray[k + 1] = key;
+		
+		int l = 0;
+		for(j = 0; j < N; j++)
+		{
+			while(arr[j] != 0)
+			{
+				j++;
+			}
+			sortArray[l] = arr[j];
+			l++;
+		}
+	}
+	
+}
+
+
+//-------------------------------------------------------------
+
+
+void run1(){
+  // Fill in your code here. You should not write everything in this function.  
+  // Write some helper functions to separate the work.	
+	char input[100];
+	printf("\nEnter the filename: ");
+	scanf("%s", &input);
+	
+	if(input == NULL)
+	{
+		fprintf(stderr, "Could not open \'%s\'", input);
+	}
+	
+	else
+	{
+		FILE *fp;
+		fp = fopen(input, "r");
+		
+		int N = 0;
+		
+		fscanf(fp, "%d", &N);
+		
+		int arr[N];
+		int NB = N;
+		
+		int i;
+		for(i = 0; i < N; i++)
+		{
+			fscanf(fp, "%d ", &arr[i]);
+		}
+		
+		fclose(fp);
+		
+		print_array(arr, N);
+		printf("\n");
+		
+		bucket_sort(arr, N);
+	}
+	
+}
+
+int main()
+{
+	printf("This program will read a file name, load data for an array from there and print the sorted array.\n");
+	printf("The array is sorted using bucket sort.\n");
+	printf("This will be repeated as long as the user wants.\n");
+	int option;
+	do {
+		run1();
+		printf("\nDo you want to repeat? Enter 1 to repeat, or 0 to stop) ");
+		char ch;
+		scanf("%d%c",&option, &ch);  // ch is used to remove the Enter from the buffer
+ 	} while (option == 1);
+
+   return 0;
+}
