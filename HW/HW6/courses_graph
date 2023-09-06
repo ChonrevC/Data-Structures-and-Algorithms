@@ -1,0 +1,331 @@
+// Chonrev Cal
+// ID: 1001228088
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAXFILENAME 30
+#define MAXCOURSENAME 30
+#define MAXLINENUM 1000
+
+// Special.txt:
+// 		- no prerequisites for any course
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Helper Functions
+
+// allocate a 2D adjacency matrix (from slides)
+// The memory allocated by this function is initialized to 0
+int ** alloc_2d(int rows, int columns) {
+	int row;
+	
+	int ** table = (int**)calloc(rows, sizeof(int *));
+	
+	for(row = 0; row < rows; row++)
+	{
+		table[row] = (int*)calloc(columns, sizeof(int));
+	}
+	
+	return table;
+}
+
+// free a 2D adjacency matrix (from slides)
+void free_2d(int ** array, int rows, int columns) {
+	
+	int row;
+	for(row = 0; row < rows; row++) free(array[row]);
+	
+	free(array);
+}
+
+// print a 2D adjacency matrix
+void printTable(int ** matrix, int vertices)
+{
+	int i,j;
+	
+	printf("    | ");
+	
+	for(i = 0; i< vertices; i++) printf("%3d ", i);
+	
+	printf("\n----");
+	
+	for(i = 0; i<vertices; i++) printf("----");
+	printf("-\n");
+	
+	for(i=0;i<vertices;i++)
+	{
+		printf("%4d| ", i);
+		
+		for(j = 0; j< vertices; j++) printf("%3d ", matrix[i][j]);
+		
+		printf("\n");
+	}
+}
+
+// Depth-First Search
+int DFSvisit(int ** matrix, int u, int * color, int * pred, int n, int * predIdx);	// prototype for helper function for DFS
+
+int * DFS(int ** matrix, int n) {
+	
+	int u = 0;											// loop and array counter
+	int cycle;											// 0 if cycle has been found
+	int predIdx = 0;
+	
+	// initialize array for colors & initialize all to 0
+	// Let  0 = white
+	// 		1 = gray
+	// 		2 = black
+	int * color = calloc(n, sizeof(int));
+	
+	// initialize array for predecessors & initialize all to nil
+	int * pred = calloc(n, sizeof(int));
+	for(u = 0; u < n; u++) pred[u] = -1;
+	
+	// for each vertex u of G
+	for(u = 0; u < n; u++)
+	{
+		// if color[u] == WHITE
+		if(color[u] == 0)
+		{
+			// DFS_visit(G, u, color, pred)
+			cycle = DFSvisit(matrix, u, color, pred, n, &predIdx);
+		}
+		
+		if(cycle == 0)
+		{
+			printf("\nThere was at least one cycle. There is no possible ordering of the courses.\n");
+			free(color);
+			free(pred);
+			return NULL;
+		}
+	}
+	
+	free(color);
+	return pred;
+	
+}
+
+// Helper function for DFS
+int DFSvisit(int ** matrix, int u, int * color, int * pred, int n, int * predIdx) {
+	
+	int v;
+	color[u] = 1;
+	int cycle;
+	
+	// for all v
+	for(v = 0; v < n; v++)
+	{
+		// for all v adjacent to u
+		if(matrix[u][v] == 1)
+		{
+			// if color[v] == WHITE
+			if(color[v] == 0)
+			{
+				// pred[v] = u
+				//pred[v] = u;
+				
+				// DFS_visit(G, v, color, pred)
+				cycle = DFSvisit(matrix, v, color, pred, n, predIdx);
+				
+				if(cycle == 0) return 0;
+			}
+			
+			// if color[v]==GRAY, then cycle found
+			if(color[v] == 1) return 0;
+		}
+	}
+	
+	// color[u] = BLACK
+	color[u] = 2;
+	
+	pred[(*predIdx)++] = u;
+	
+	return 1;
+	
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+int main() {
+	
+	// Create variables
+	char * fileName = malloc(MAXFILENAME * sizeof(char));		// name for file
+	char c;
+	int vertices = 0;									// number of vertices in the file
+	
+	// program intentions
+	printf("This program will read, from a file, a list of courses and their prerequisites and will print the list in which to take courses.\n");
+	
+	// get filename
+	printf("Enter filename: ");
+	scanf("%s%c", fileName, &c);
+	
+	// open the file
+	FILE *inFile = fopen(fileName, "r");
+	
+	// Check if file is valid
+	if(inFile == NULL) 
+	{
+		printf("\nFailed to read from file. Program will terminate.\n\n");
+		free(fileName);
+		return 0;
+	}
+	
+	// count & print the amount of vertices (the amount of lines)
+	while(fscanf(inFile, "%c", &c) != EOF)
+	{
+		if(c == '\n') vertices++;
+	}
+	printf("Number of vertices in built graph: N = %d\n", vertices);
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// List the Vertices
+	
+	// Move the file pointer back to the beginning
+	fseek(inFile, 0, SEEK_SET);
+	
+	
+	// Create variables
+	int i = 0, j = 0;									// i=row, j=column
+	char courseNames[vertices][MAXCOURSENAME]; 					// names of the vertices
+	char course[MAXCOURSENAME];									// string holder for course to put into courseNames
+	int spaceFound = 0;									// boolean for if we encountered a space in the file
+	char currentChar;
+	
+	// Get the names of the vertices
+	printf("Vertex - coursename correspondence\n");
+	while(fscanf(inFile, "%c", &currentChar) != EOF)
+	{	
+		// spaceFound = 0, but ran into space or newLine
+		if(spaceFound==0 && (currentChar == ' ' || currentChar == '\n')) 
+		{
+			course[j] = '\0';							// add null terminator to end of name
+			strcpy(courseNames[i], course);				// add the course to the list of courses
+			
+			i++;										// go to next course
+			j = 0;										// go back to first char
+			
+			if(currentChar == ' ') spaceFound = 1;		// if we ran into a space
+		}
+		
+		// spaceFound = 1 and newLine found
+		else if(currentChar == '\n') 
+		{
+			j = 0;
+			spaceFound = 0;
+		}
+		
+		// spaceFound = 1 and space found
+		else if(currentChar == ' ') j = 0;
+		
+		// spaceFound = 0, but no space or newLine found
+		else
+		{
+			course[j] = currentChar;
+			j++;
+		}
+	}
+	
+	// List the names of the courses
+	for(i = 0; i < vertices; i++)
+	{
+		printf("%d - %s\n", i, courseNames[i]);
+	}
+	printf("\n");
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Adjacency Matrix
+	
+	// bring file pointer back to beginning again
+	fseek(inFile, 0, SEEK_SET);
+	
+	
+	// Create adjacency matrix
+	int ** matrix = alloc_2d(vertices, vertices);
+	
+	// adjust variables
+	i = 0, j = 0;												// Now, i will be the location in the course name
+																// 		and j will be the column in the matrix
+	int k = 0;													// loop counter
+	spaceFound = 0;
+	
+	// Adjust the values in the adjacency matrix
+	while(fscanf(inFile, "%c", &currentChar) != EOF)
+	{
+		if(spaceFound == 0 && (currentChar == ' ' || currentChar == '\n'))
+		{
+			course[i] = '\0';
+			i = 0;
+			
+			for(k = 0; k < vertices; k++)
+			{
+				if(strcmp(courseNames[k], course) == 0) j = k;
+			}
+			
+			if(currentChar == ' ') spaceFound = 1;
+		}
+		
+		else if(currentChar == ' ')
+		{
+			course[i] = '\0';
+			i = 0;
+			
+			for(k = 0; k < vertices; k++)
+			{
+				if(strcmp(courseNames[k], course) == 0) matrix[k][j] = 1;
+			}
+		}
+		
+		else if(currentChar == '\n')
+		{
+			course[i] = '\0';
+			i = 0;
+			for(k = 0; k < vertices; k++)
+			{
+				if(strcmp(courseNames[k], course) == 0) matrix[k][j] = 1;
+			}
+			spaceFound = 0;
+		}
+		
+		else
+		{
+			course[i] = currentChar;
+			i++;
+		}
+	}
+	
+	// print the adjaency matrix
+	printf("Adjacency Matrix:\n");
+	
+	printTable(matrix, vertices);
+	
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// DFS and DFS_visit
+	
+	int * pred = DFS(matrix, vertices);
+	
+	if(pred != NULL)
+	{
+		printf("\nOrder in which to take courses:\n");
+		for(i = vertices - 1; i >= 0; i--)
+		{
+			printf("%d. - %s (corresponds to graph vertex %d)\n", vertices - i, courseNames[pred[i]], pred[i]);
+		}
+		
+		free(pred);
+		
+	}
+	
+	printf("\n");
+	
+	// close file and free arrays
+	fclose(inFile);
+	free(fileName);
+	free_2d(matrix, vertices, vertices);
+	
+	return 0;
+}
+
+
